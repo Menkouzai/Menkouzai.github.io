@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="英语跟读">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>英语视频学习工作台</title>
+<style>
+  :root{ --bg:#f7f7f5; --card:#fff; --ink:#1f2937; --muted:#6b7280;
+    --accent:#0f766e; --accent-soft:#ccfbf1; --line:#e5e7eb;
+    --miss:#b91c1c; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; font-size:16px;}
+  .wrap{max-width:560px; margin:0 auto; padding:10px 12px 32px;}
+  header{display:flex; align-items:center; justify-content:space-between; padding:8px 2px 12px;}
+  header h1{font-size:17px; margin:0;}
+  .tabs{display:flex; background:var(--line); border-radius:999px; padding:3px;}
+  .tabs button{border:0; background:transparent; padding:8px 16px; border-radius:999px;
+    font-size:14px; color:var(--muted); cursor:pointer; min-height:38px;}
+  .tabs button.active{background:var(--card); color:var(--ink); font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  section{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px; margin-bottom:12px;}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .btn{border:1px solid var(--line); background:var(--card); border-radius:10px;
+    padding:12px 14px; font-size:15px; min-height:48px; cursor:pointer; color:var(--ink);}
+  .btn:active{transform:scale(.97);}
+  .btn.small{min-height:38px; padding:6px 12px; font-size:13px;}
+  .btn.danger{color:var(--miss); border-color:#fecaca;}
+  video{width:100%; max-height:36vh; border-radius:10px; background:#111; display:block;}
+  .empty-video{height:110px; display:flex; align-items:center; justify-content:center;
+    background:#f1f5f9; border-radius:10px; color:var(--muted); font-size:13px;}
+  textarea{width:100%; min-height:70px; border:1px solid var(--line); border-radius:10px;
+    padding:10px; font-size:15px; font-family:inherit; resize:vertical;}
+  input[type=file]{display:none;}
+  input[type=url]{flex:1; min-width:150px; border:1px solid var(--line); border-radius:10px;
+    padding:10px; font-size:14px; min-height:44px;}
+  .cur{font-size:20px; line-height:1.6; padding:10px 4px; min-height:52px;}
+  .cur .t{color:var(--muted); font-size:12px; margin-right:8px;}
+  .pos{color:var(--muted); font-size:12px;}
+  .ctrls{display:flex; gap:10px; margin-top:10px;}
+  .ctrl{flex:1; min-height:58px; border:1px solid var(--line); background:var(--card);
+    border-radius:14px; font-size:16px; cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:2px;}
+  .ctrl:active{transform:scale(.96);}
+  .ctrl.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .list{max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;}
+  .sent{padding:10px 12px; border-radius:10px; font-size:15px; line-height:1.5;
+    cursor:pointer; border:1px solid transparent;}
+  .sent.active{background:var(--accent-soft); border-color:var(--accent); font-weight:600;}
+  .sent .n{color:var(--muted); font-size:12px; margin-right:8px;}
+  .hint{font-size:12.5px; color:var(--muted); line-height:1.6; margin:6px 0 0;}
+  /* ===== 素材库 ===== */
+  .lv-pick{display:flex; gap:8px;}
+  .lv-pick button{border:1px solid var(--line); background:var(--card); border-radius:10px;
+    padding:10px 14px; font-size:14px; min-height:44px; cursor:pointer; color:var(--muted);}
+  .lv-pick button.active{background:var(--accent-soft); border-color:var(--accent);
+    color:var(--accent); font-weight:600;}
+  .grp-title{font-size:13px; color:var(--muted); font-weight:600; margin:14px 2px 8px;}
+  .cards{display:grid; grid-template-columns:1fr; gap:8px;}
+  .mcard{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px; cursor:pointer; transition:transform .05s;}
+  .mcard:active{transform:scale(.98);}
+  .mcard.open{border-color:var(--accent);}
+  .mcard .name{font-size:15px; font-weight:600; line-height:1.4; word-break:break-all;}
+  .mcard .meta{font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.7;}
+  .mcard .ops{display:flex; justify-content:flex-end; margin-top:6px;}
+  .tag{font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; flex-shrink:0;}
+  .t-A12{background:#dbeafe; color:#1d4ed8;} .t-B12{background:#dcfce7; color:#15803d;}
+  .t-C12{background:#fef3c7; color:#92400e;}
+  .mcard .head{display:flex; justify-content:space-between; gap:8px; align-items:flex-start;}
+  .st-ok{color:var(--accent);} .st-none{color:var(--miss);}
+  /* ===== 跟读练习 ===== */
+  .notice{background:#fef3c7; border:2px solid #f59e0b; color:#92400e; font-weight:700;
+    padding:9px 12px; border-radius:10px; font-size:13.5px; margin:10px 0; line-height:1.5;}
+  .lbl{font-size:12.5px; color:var(--muted); font-weight:600; margin:10px 0 4px;}
+  .rbox{background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:10px;}
+  .rtext{font-size:16.5px; line-height:1.6;}
+  .btn.rec{flex:0 0 auto; background:var(--miss); border-color:var(--miss); color:#fff;
+    font-weight:600; min-height:56px; touch-action:none; user-select:none; -webkit-user-select:none;}
+  .btn.rec.holding{animation:blink 1s infinite;}
+  @keyframes blink{50%{opacity:.55;}}
+  .rdot{display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; margin-right:6px;}
+  #rDiff{font-size:16px; line-height:1.9;}
+  .w-ok{background:#dcfce7; color:#15803d; border-radius:4px; padding:1px 4px;}
+  .w-miss{background:#fee2e2; color:#b91c1c; border-radius:4px; padding:1px 4px; text-decoration:line-through;}
+  .w-sub{background:#fef3c7; color:#92400e; border-radius:4px; padding:1px 4px;}
+  .tip{margin:6px 0; font-size:14px; line-height:1.7; padding-left:2px;}
+  .tip b{color:var(--accent);}
+  audio{width:100%; margin-top:4px;}
+  /* ===== 文本模式 ===== */
+  .tabs{display:flex; background:var(--line); border-radius:999px; padding:3px;}
+  .tabs button{border:0; background:transparent; padding:8px 16px; border-radius:999px;
+    font-size:14px; color:var(--muted); cursor:pointer; min-height:38px;}
+  .tabs button.active{background:var(--card); color:var(--ink); font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .pview{font-size:14px; color:var(--muted); padding:10px 12px; border-bottom:1px dashed var(--line);
+    line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pview .n{font-size:12px; margin-right:6px;}
+  #curT{font-size:24px; line-height:1.7;}
+  #textView{touch-action:pan-y;}
+  @media (min-width:768px){ .wrap{max-width:900px;}
+    .grid{display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:start;}
+    .list{max-height:420px;} video{max-height:48vh;}
+    .cards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>英语视频学习工作台</h1>
+    <div class="tabs">
+      <button id="tabLearn" class="active" onclick="showPage('learn')">学习</button>
+      <button id="tabLib" onclick="showPage('lib')">素材库</button>
+    </div>
+  </header>
+
+  <!-- ================= 素材库页 ================= -->
+  <div id="pageLib" style="display:none">
+    <section>
+      <div class="pos" style="margin-bottom:8px">① 先选等级标签（上传视频时必选）</div>
+      <div class="lv-pick" id="lvPick">
+        <button data-l="A1-2">A1-2</button>
+        <button data-l="B1-2">B1-2</button>
+        <button data-l="C1-2">C1-2</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="pickVideo()">🎬 上传视频文件</button>
+        <button class="btn" onclick="fS.click()">📄 给当前素材关联字幕/文本</button>
+        <input type="file" id="fV" accept="video/*,audio/*">
+        <input type="file" id="fS" accept=".srt,.vtt,.txt">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="url" id="vUrl" placeholder="或粘贴视频直链（跨会话可用，手机也能访问）">
+        <button class="btn small" onclick="addUrl()">添加直链素材</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <textarea id="paste" placeholder="给当前素材粘贴纯文本字幕：一行一句（无时间轴）。可选译文：每行写「原文 | 译文」"></textarea>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn small" onclick="usePaste()">关联这段文本</button>
+      </div>
+      <p class="hint">说明：本地视频文件因浏览器安全限制不跨会话保存，重开页面后点开素材再补选一次文件即可；直链素材与字幕/文本会持久保存。删除素材只删除工作台里的记录，不动原始文件。</p>
+    </section>
+    <div id="libList"></div>
+  </div>
+
+  <!-- ================= 学习页 ================= -->
+  <div id="pageLearn">
+    <div class="tabs" style="margin-bottom:12px">
+      <button id="tabV" class="active" onclick="setMode('video')">视频模式</button>
+      <button id="tabT" onclick="setMode('text')">文本模式</button>
+    </div>
+    <div class="grid">
+      <div>
+        <div id="videoZone">
+          <div class="empty-video" id="vWrap"><video id="v" playsinline controls></video></div>
+          <div id="rePick" class="row" style="display:none; margin-top:8px">
+            <button class="btn small" onclick="fV.click()">📁 重新选择视频文件</button>
+            <span class="hint" id="rePickName"></span>
+          </div>
+        </div>
+        <div id="textView" style="display:none">
+          <section>
+            <div class="pview" id="pvPrev"></div>
+            <div class="pview" id="pvNext" style="border-bottom:0"></div>
+          </section>
+          <section>
+            <div class="pos" id="posT"></div>
+            <div class="cur" id="curT"></div>
+            <div id="transBox" class="rbox" style="display:none; margin-top:8px"></div>
+          </section>
+        </div>
+        <section>
+          <div class="pos" id="pos">未加载句子</div>
+          <div class="cur" id="cur">到「素材库」添加素材，或直接在素材页上传视频和字幕</div>
+          <div class="ctrls">
+            <button class="ctrl" onclick="go(-1)">⏮<span>上一句</span></button>
+            <button class="ctrl" id="bPlay" onclick="toggle()">▶<span>播放/暂停</span></button>
+            <button class="ctrl" onclick="go(1)">⏭<span>下一句</span></button>
+            <button class="ctrl" id="bLoop" onclick="toggleLoop()">🔁<span>循环本句</span></button>
+            <button class="ctrl" id="bTrans" onclick="toggleTrans()">文A<span>显示翻译</span></button>
+          </div>
+          <p class="hint">快捷键：空格 播放/暂停 · ← → 切句。文本模式支持左右滑动切句；循环=重复朗读。</p>
+        </section>
+
+        <section>
+          <div class="pos">跟读练习</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn rec" id="btnRec"><span class="rdot"></span>按住录音</button>
+            <span class="hint" style="flex:1">按住说话，松开结束。录音只保存在本浏览器，不上传任何服务器。</span>
+          </div>
+          <div class="hint" id="asrStatus"></div>
+
+          <div id="recArea" style="display:none">
+            <div class="lbl">① 原句文本</div>
+            <div class="rbox rtext" id="rRef"></div>
+            <div class="lbl">② 我的录音（可回放）</div>
+            <div class="rbox"><audio id="rAudio" controls></audio></div>
+            <div class="lbl">③ 对比结果</div>
+            <div class="rbox">
+              <div class="notice">⚠️ 当前为简化反馈，不提供音素级精确评分</div>
+              <div id="rDiff"></div>
+              <div id="rTips"></div>
+            </div>
+          </div>
+
+          <textarea id="manualHyp" placeholder="备用：网页识别不可用时，手动输入你读的内容（听到什么输什么）" style="min-height:52px; margin-top:10px"></textarea>
+          <div class="row" style="margin-top:6px">
+            <button class="btn small" onclick="compareManual()">用手动输入对比</button>
+          </div>
+        </section>
+      </div>
+      <div id="listCol">
+        <section>
+          <div class="pos" id="count"></div>
+          <div class="list" id="list"><p class="hint" style="padding:8px">句子会出现在这里，点任意一句跳转。</p></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const v=document.getElementById('v'), $=id=>document.getElementById(id);
+let sents=[], i=-1, loop=false;
+let mode='video', transOn=false;
+let mats=JSON.parse(localStorage.getItem('mvp_mats')||'[]'); // 持久化素材元数据
+let curMatId=null;
+let sessionBlobs={};          // matId -> blobURL，仅本次会话有效
+let pendingLevel=null;        // 上传视频前必须先选的等级
+let pendingLocalId=null;      // 等待补选本地视频文件的素材 id
+
+const save=()=>localStorage.setItem('mvp_mats',JSON.stringify(mats));
+const curMat=()=>mats.find(m=>m.id===curMatId)||null;
+
+/* ---------- 页面切换 ---------- */
+function showPage(p){
+  $('pageLib').style.display=p==='lib'?'':'none';
+  $('pageLearn').style.display=p==='learn'?'':'none';
+  $('tabLearn').classList.toggle('active',p==='learn');
+  $('tabLib').classList.toggle('active',p==='lib');
+  if(p==='lib')renderLib();
+}
+
+/* ---------- 等级标签 ---------- */
+$('lvPick').onclick=e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  pendingLevel=b.dataset.l;
+  $('lvPick').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+};
+
+/* ---------- 上传/补选视频（单一入口） ---------- */
+function pickVideo(){ if(!pendingLevel){alert('请先选择等级标签（A1-2 / B1-2 / C1-2）');return;} fV.click(); }
+fV.onchange=async ()=>{
+  const f=fV.files[0]; if(!f)return;
+  // 场景一：为等待补选的素材绑定本地文件
+  if(pendingLocalId){
+    sessionBlobs[pendingLocalId]=URL.createObjectURL(f);
+    const m=mats.find(x=>x.id===pendingLocalId);
+    if(m&&m.name!==f.name)alert('提示：选择的文件名与素材记录不一致（仍会加载）');
+    const id=pendingLocalId; pendingLocalId=null;
+    openMaterial(id); renderLib(); return;
+  }
+  // 场景二：新建素材（必须先选等级）
+  if(!pendingLevel){alert('请先选择等级标签（A1-2 / B1-2 / C1-2）');return;}
+  const m={id:'m'+Date.now(), name:f.name, level:pendingLevel, kind:'local',
+    videoSrc:null, duration:null, subName:null, subKind:null, subContent:null, hasTimeline:false};
+  mats.unshift(m); save();
+  sessionBlobs[m.id]=URL.createObjectURL(f);
+  openMaterial(m.id); renderLib();
+};
+
+/* ---------- 视频直链 ---------- */
+function addUrl(){
+  const u=$('vUrl').value.trim(); if(!u){alert('请先粘贴视频直链');return;}
+  if(!pendingLevel){alert('请先选择等级标签（A1-2 / B1-2 / C1-2）');return;}
+  const m={id:'m'+Date.now(), name:decodeURIComponent(u.split('/').pop()||'视频直链').slice(0,40),
+    level:pendingLevel, kind:'url', videoSrc:u, duration:null,
+    subName:null, subKind:null, subContent:null, hasTimeline:false};
+  mats.unshift(m); save(); $('vUrl').value=''; renderLib(); openMaterial(m.id);
+}
+
+/* ---------- 关联字幕/文本 ---------- */
+/* 纯文本行解析：「原文 | 译文」可选 */
+function parseLines(raw){
+  return raw.split('\n').map(s=>s.trim()).filter(Boolean).map(l=>{
+    const p=l.split('|');
+    return {start:null,end:null,text:p[0].trim(),trans:p[1]?p.slice(1).join('|').trim():null};
+  });
+}
+$('fS').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const txt=await f.text();
+  attachSub(f.name, f.name.toLowerCase().match(/\.(srt|vtt)$/)?'srt':'text', txt);
+};
+function usePaste(){
+  const lines=$('paste').value.trim().split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){alert('请先粘贴文本，一行一句');return;}
+  attachSub('粘贴文本','text',lines.join('\n'));
+}
+function attachSub(name,kind,txt){
+  let m=curMat();
+  if(!m){ // 没有当前素材时，先建一个纯文本素材
+    m={id:'m'+Date.now(), name:name+'（文本素材）', level:pendingLevel||'A1-2',
+      kind:'text', videoSrc:null, duration:null,
+      subName:null, subKind:null, subContent:null, hasTimeline:false};
+    mats.unshift(m); curMatId=m.id;
+  }
+  m.subName=name; m.subKind=kind; m.subContent=txt; m.hasTimeline=(kind==='srt');
+  save(); openMaterial(m.id); renderLib();
+}
+
+/* ---------- 素材库渲染 ---------- */
+function renderLib(){
+  const box=$('libList'); box.innerHTML='';
+  ['A1-2','B1-2','C1-2'].forEach(lv=>{
+    const list=mats.filter(m=>m.level===lv);
+    const h=document.createElement('div'); h.className='grp-title';
+    h.textContent=lv+'（'+list.length+'）'; box.appendChild(h);
+    const cards=document.createElement('div'); cards.className='cards';
+    if(!list.length){cards.innerHTML='<p class="hint">暂无素材</p>';}
+    list.forEach(m=>{
+      const dur=m.duration?fmt(m.duration):(m.kind==='url'?'时长未知（打开后读取）':'待补选视频后读取');
+      const subSt=m.subKind==='srt'?`<span class="st-ok">字幕 ${m.subName}（有时间轴）</span>`
+        :m.subKind==='text'?`<span class="st-ok">纯文本（无时间轴）</span>`
+        :'<span class="st-none">未关联字幕/文本</span>';
+      const d=document.createElement('div');
+      d.className='mcard'+(m.id===curMatId?' open':'');
+      d.innerHTML=`<div class="head"><div style="min-width:0">
+          <div class="name">${esc(m.name)}</div>
+          <div class="meta">时长：${dur}<br>${subSt}</div></div>
+        <span class="tag t-${lv.replace('-','')}">${lv}</span></div>
+        <div class="ops"><button class="btn small danger">删除</button></div>`;
+      d.querySelector('.danger').onclick=ev=>{
+        ev.stopPropagation();
+        if(confirm(`确定删除素材「${m.name}」吗？\n（只删除工作台中的记录/引用，不会删除你设备或网盘上的原始文件）`)){
+          mats=mats.filter(x=>x.id!==m.id); save(); renderLib();
+          if(curMatId===m.id){curMatId=null; sents=[]; i=-1; render(); show(-1);}
+        }
+      };
+      d.onclick=()=>openMaterial(m.id);
+      cards.appendChild(d);
+    });
+    box.appendChild(cards);
+  });
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ---------- 打开素材 → 回到学习页并加载 ---------- */
+function openMaterial(id){
+  const m=mats.find(x=>x.id===id); if(!m)return;
+  curMatId=id; showPage('learn');
+  // 视频
+  if(m.kind==='url'){ v.src=m.videoSrc; $('vWrap').classList.remove('empty-video'); $('rePick').style.display='none'; }
+  else if(sessionBlobs[id]){ v.src=sessionBlobs[id]; $('vWrap').classList.remove('empty-video'); $('rePick').style.display='none'; }
+  else{ pendingLocalId=id; $('rePick').style.display='flex'; $('rePickName').textContent='「'+m.name+'」是本地文件，重开页面后需补选一次'; }
+  // 句子
+  if(m.subKind==='srt'){ load(parseSRT(m.subContent)); }
+  else if(m.subKind==='text'){ load(parseLines(m.subContent)); }
+  else{ sents=[]; i=-1; render(); $('cur').textContent='该素材还没有字幕/文本，到素材页关联一个'; $('pos').textContent='0 / 0'; }
+  v.onloadedmetadata=()=>{ if(v.duration){m.duration=Math.round(v.duration);save();} };
+}
+
+/* ---------- 播放逻辑（同前） ---------- */
+function load(arr){ sents=arr; i=0; render(); show(0); }
+function parseSRT(txt){
+  const out=[], re=/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/;
+  for(const b of txt.replace(/\r/g,'').split(/\n\n+/)){
+    const L=b.trim().split('\n').filter(l=>l&&!/^WEBVTT/i.test(l)&&!/^\d+$/.test(l));
+    if(L.length<2)continue;
+    const mm=L[0].match(re)||L[1].match(re); if(!mm)continue;
+    const st=(+mm[1])*3600+(+mm[2])*60+(+mm[3])+(+mm[4])/1000;
+    const en=(+mm[5])*3600+(+mm[6])*60+(+mm[7])+(+mm[8])/1000;
+    const t=L.filter(l=>!re.test(l)).join(' ').replace(/<[^>]+>/g,'').trim();
+    if(t)out.push({start:st,end:en,text:t});
+  }
+  return out;
+}
+function toggle(){
+  if(mode==='text'){ if(window.speechSynthesis)speakCurrent(); return; }
+  if(!sents.length)return; v.paused?v.play():v.pause();
+}
+v.onplay =()=>{$('bPlay').firstChild.textContent='⏸';};
+v.onpause=()=>{$('bPlay').firstChild.textContent='▶';};
+/* 文本模式的"音频"=浏览器内置朗读 */
+function stopSpeech(){ if(window.speechSynthesis)speechSynthesis.cancel(); }
+function speakCurrent(){
+  const s=sents[i]; if(!s)return;
+  stopSpeech();
+  const u=new SpeechSynthesisUtterance(s.text); u.lang='en-US'; u.rate=0.95;
+  u.onend=()=>{ if(loop&&mode==='text')speakCurrent(); };
+  speechSynthesis.speak(u);
+}
+function go(d){
+  if(!sents.length)return;
+  jump(Math.min(Math.max(i+d,0),sents.length-1));
+}
+function jump(n){
+  i=n; stopSpeech();
+  const s=sents[n];
+  if(mode==='video'&&s.start!=null){ v.currentTime=s.start; if(v.paused&&!loop)v.play(); }
+  show(n);
+}
+function toggleLoop(){
+  if(mode==='text'){
+    loop=!loop; $('bLoop').classList.toggle('on',loop);
+    if(loop){ if(window.speechSynthesis)speakCurrent(); }
+    else stopSpeech();
+    return;
+  }
+  if(!sents.length||sents[0].start==null){alert('循环需要字幕时间轴；纯文本模式请手动切句');return;}
+  loop=!loop; $('bLoop').classList.toggle('on',loop);
+}
+/* 模式切换：保持当前句位置不变 */
+function setMode(m){
+  if(mode===m)return;
+  mode=m; stopSpeech();
+  $('tabV').classList.toggle('active',m==='video');
+  $('tabT').classList.toggle('active',m==='text');
+  $('videoZone').style.display=m==='video'?'':'none';
+  $('textView').style.display=m==='text'?'':'none';
+  $('listCol').style.display=m==='video'?'':'none';
+  show(Math.max(i,0));
+}
+function toggleTrans(){
+  transOn=!transOn;
+  $('bTrans').classList.toggle('on',transOn);
+  $('bTrans').querySelector('span').textContent=transOn?'隐藏翻译':'显示翻译';
+  show(Math.max(i,0));
+}
+function show(n){
+  if(n<0||!sents.length){ $('pos').textContent='未加载句子'; return; }
+  const s=sents[n];
+  $('cur').innerHTML=(s.start!=null?`<span class="t">${fmt(s.start)}</span>`:'')+esc(s.text);
+  $('pos').textContent=(n+1)+' / '+sents.length+(s.start==null?'（无时间轴，手动推进）':'');
+  // 文本模式视图
+  const prev=n>0?sents[n-1]:null, nxt=n<sents.length-1?sents[n+1]:null;
+  $('pvPrev').innerHTML=prev?`<span class="n">上一句</span>${esc(prev.text)}`:'<span class="n">（已是第一句）</span>';
+  $('pvNext').innerHTML=nxt?`<span class="n">下一句</span>${esc(nxt.text)}`:'<span class="n">（已是最后一句）</span>';
+  $('curT').textContent=s.text;
+  $('posT').textContent=(n+1)+' / '+sents.length;
+  $('transBox').style.display=transOn?'':'none';
+  $('transBox').innerHTML=transOn?(s.trans?esc(s.trans):'<span class="hint">（本句无译文）</span>'):'';
+  // 句子列表高亮（视频模式可见）
+  document.querySelectorAll('.sent').forEach(el=>{
+    el.classList.toggle('active',+el.dataset.i===n);
+    if(+el.dataset.i===n)el.scrollIntoView({block:'nearest'});
+  });
+}
+function fmt(sec){const t=sec; return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
+function hint(msg){alert(msg);}
+function render(){
+  const box=$('list'); box.innerHTML='';
+  $('count').textContent=sents.length+' 句';
+  sents.forEach((s,n)=>{
+    const d=document.createElement('div'); d.className='sent'; d.dataset.i=n;
+    d.innerHTML=`<span class="n">${n+1}${s.start!=null?' · '+fmt(s.start):''}</span>${esc(s.text)}`;
+    d.onclick=()=>jump(n); box.appendChild(d);
+  });
+}
+v.ontimeupdate=()=>{
+  if(!loop||i<0)return; const s=sents[i];
+  if(s&&s.end!=null&&v.currentTime>=s.end)v.currentTime=s.start;
+};
+document.addEventListener('keydown',e=>{
+  if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
+  if(e.code==='Space'){e.preventDefault();toggle();}
+  else if(e.key==='ArrowLeft')go(-1);
+  else if(e.key==='ArrowRight')go(1);
+});
+
+/* ==================== 跟读练习：按住录音 + 简化对比（与"跟读对比反馈"技能同规则） ==================== */
+const EXPAND={wanna:["want","to"],gonna:["going","to"],gotta:["got","to"],kinda:["kind","of"],
+  sorta:["sort","of"],lotta:["lot","of"],hafta:["have","to"],hasta:["has","to"],useta:["used","to"],
+  outta:["out","of"],lemme:["let","me"],gimme:["give","me"],didja:["did","you"],
+  wouldja:["would","you"],gotcha:["got","you"]};
+const STRESS_HINTS={information:"in-for-MA-tion（重音在 MA）",computer:"com-PU-ter（重音在 PU）",
+  comfortable:"COM-fuh-tuh-bul（重音在 COM）",important:"im-POR-tant（重音在 POR）",
+  interesting:"IN-truh-sting（日常三拍）",experience:"ex-PE-ri-ence（重音在 PE）",
+  development:"de-VE-lop-ment（重音在 VE）",opportunity:"op-por-TU-ni-ty（重音在 TU）",
+  beautiful:"BYOO-ti-ful（重音在第一拍）",tomorrow:"tu-MOR-row（重音在 MOR）",
+  exercise:"EX-er-cise（重音在第一拍）",favorite:"FA-vrit（日常两拍）"};
+const WEAK={"want to":"wanna","going to":"gonna","got to":"gotta","kind of":"kinda",
+  "sort of":"sorta","lot of":"lotta","have to":"hafta","has to":"hasta","used to":"useta",
+  "out of":"outta","let me":"lemme","give me":"gimme","did you":"didja","would you":"wouldja",
+  "not at all":"naw-ta-tall（三连击，t 弱化为闪音）","meet you":"meetchu",
+  "tell him":"tell-im（h 击穿弱化）","in the":"in-tha（弱读）"};
+const FUNC=new Set(["a","an","the","of","to","and","or","at","in","on","for","is","are","was","were","it","that"]);
+const TIP_N={"A1-2":1,"B1-2":2,"C1-2":3};
+
+const normW=w=>w.toLowerCase().replace(/[^a-z']/g,'');
+const syll=w=>(w.match(/[aeiouy]+/g)||['a']).length;
+const clusterEnd=w=>/(st$|sk$|sp$|ft$|pt$|kt$|nd$|mp$|ld$|ks$|ts$|ds$|ths$|ed$|es$|s$)/.test(w);
+function linkPair(a,b){
+  a=a.toLowerCase();b=b.toLowerCase();
+  if(/[bcdfgklmnprstvz]$/.test(a)&&/^[aeiou]/.test(b))return a+'‿'+b;
+  if(/t$/.test(a)&&/^you/.test(b))return a+'‑chu（t 腭化）';
+  if(/d$/.test(a)&&/^you/.test(b))return a+'‑ju（d 腭化）';
+  return null;
+}
+function expandWeak(words){
+  const out=[];
+  for(const w of words){const n=normW(w); if(EXPAND[n])out.push(...EXPAND[n]); else out.push(w);}
+  return out;
+}
+/* LCS 对齐 -> ok/miss/extra，再把相邻的 miss/extra 配成替换(sub) */
+function alignWords(refW,hypW){
+  const R=refW.map(normW),H=hypW.map(normW),n=R.length,m=H.length;
+  const dp=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let a=n-1;a>=0;a--)for(let b=m-1;b>=0;b--)
+    dp[a][b]=R[a]===H[b]?dp[a+1][b+1]+1:Math.max(dp[a+1][b],dp[a][b+1]);
+  const raw=[];let a=0,b=0;
+  while(a<n&&b<m){
+    if(R[a]===H[b]){raw.push({s:'ok',r:refW[a],h:hypW[b]});a++;b++;}
+    else if(dp[a+1][b]>=dp[a][b+1]){raw.push({s:'miss',r:refW[a],h:null});a++;}
+    else{raw.push({s:'extra',r:null,h:hypW[b]});b++;}
+  }
+  while(a<n)raw.push({s:'miss',r:refW[a++],h:null});
+  while(b<m)raw.push({s:'extra',r:null,h:hypW[b++]});
+  // 把 miss/extra 连续段配对成 sub
+  const ops=[];let buf=[];
+  const flush=()=>{
+    const miss=buf.filter(x=>x.s==='miss'),extra=buf.filter(x=>x.s==='extra');
+    const k=Math.min(miss.length,extra.length);
+    for(let t=0;t<k;t++)ops.push({s:'sub',r:miss[t].r,h:extra[t].h});
+    for(let t=k;t<miss.length;t++)ops.push(miss[t]);
+    for(let t=k;t<extra.length;t++)ops.push(extra[t]);
+    buf=[];
+  };
+  for(const o of raw){ if(o.s==='miss'||o.s==='extra')buf.push(o); else {flush();ops.push(o);} }
+  flush();
+  return ops;
+}
+function buildTips(ops,refW,level){
+  const tips=[];const add=(pri,title,body)=>tips.push({pri,title,body});
+  for(const o of ops){
+    if(o.s==='sub'){
+      const rn=normW(o.r),hn=normW(o.h);
+      if(hn&&rn.startsWith(hn)&&rn.length-hn.length>=2)
+        add(1,`尾音节被吞：${o.r} → 你读成了 ${o.h}`,`“${o.r}”的后半段（${rn.slice(hn.length)}）没读出来。慢速把最后一拍补完整${STRESS_HINTS[rn]?'（'+STRESS_HINTS[rn]+'）':''}，再加速。`);
+      else if(STRESS_HINTS[rn])
+        add(1,`重音：${o.r} → 你读成了 ${o.h}`,`多音节词重音位置不对。正确读法：${STRESS_HINTS[rn]}。`);
+      else if(syll(rn)>=3)
+        add(1,`重音：${o.r} → 你读成了 ${o.h}`,`${o.r} 是 ${syll(rn)} 拍词，重音一般在靠前音节，别每拍都一样重。`);
+      else if(clusterEnd(rn)&&!clusterEnd(hn))
+        add(2,`吞尾辅音：${o.r} → ${o.h}`,`“${o.r}”结尾的辅音簇被吞了。先读 ${rn.slice(0,-1)}，再补上尾音，加速合并。`);
+      else if(FUNC.has(rn))
+        add(2,`功能词：${o.r} → ${o.h}`,`功能词不用读那么重，弱读成一拍（/ə/），重音留给实词。`);
+    }else if(o.s==='miss'){
+      const rn=normW(o.r);
+      if(clusterEnd(rn))add(2,`漏读（吞尾）：${o.r}`,`“${o.r}”整词或尾音没出来。若是 -ed/-s 结尾，慢速补上 /t/ /d/ /s/，它承担语法信息。`);
+      else if(FUNC.has(rn))add(3,`漏读（弱读没出来）：${o.r}`,`功能词弱读可以轻，但不能完全没有——给它 /ə/ 的半拍。`);
+    }
+  }
+  const J=refW.map(normW);
+  for(const L of [3,2])for(let k=0;k<=J.length-L;k++){
+    const key=J.slice(k,k+L).join(' ');
+    if(WEAK[key])add(3,`连读/弱读：${key}`,`可读成“${WEAK[key]}”，不要逐词重读。`);
+  }
+  tips.sort((x,y)=>x.pri-y.pri);
+  const links=[];
+  for(let k=0;k<refW.length-1;k++){const lp=linkPair(refW[k],refW[k+1]);if(lp)links.push(lp);}
+  return {picked:tips.slice(0,TIP_N[level]||2),links};
+}
+function renderCompare(hyp){
+  const s=sents[i]; if(!s){alert('先选中一句再对比');return;}
+  const m=curMat(), level=m?m.level:'B1-2';
+  const refW=s.text.split(/\s+/).filter(Boolean);
+  const hypW=expandWeak(hyp.split(/\s+/).filter(Boolean));
+  const ops=alignWords(refW,hypW);
+  const ok=ops.filter(o=>o.s==='ok').length;
+  const cov=Math.round(ok/(ops.length||1)*100);
+  $('rRef').textContent=s.text;
+  let html=`<div class="hint" style="margin-bottom:4px">词覆盖率约 <b>${cov}%</b></div>`+
+    ops.map(o=>o.s==='ok'?`<span class="w-ok">${esc(o.r)}</span>`
+      :o.s==='miss'?`<span class="w-miss">${esc(o.r)}</span>`
+      :o.s==='sub'?`<span class="w-sub">${esc(o.r)}→${esc(o.h)}</span>`:'').join(' ');
+  const extras=ops.filter(o=>o.s==='extra').map(o=>esc(o.h));
+  if(extras.length)html+=`<div class="hint" style="margin-top:6px">多说出的词：${extras.join(' / ')}</div>`;
+  $('rDiff').innerHTML=html;
+  const {picked,links}=buildTips(ops,refW,level);
+  $('rTips').innerHTML=picked.length
+    ?`<div class="lbl">可以怎么改（按 ${level} 裁剪为 ${picked.length} 条）</div>`+
+     picked.map((t,k)=>`<div class="tip">${k+1}. <b>${esc(t.title)}</b> —— ${esc(t.body)}</div>`).join('')+
+     (level==='C1-2'&&links.length?`<div class="tip">+ 连读拆解：优先练 ${links.slice(0,3).map(esc).join(' / ')}（‿表示两词连成一个音步）</div>`:'')
+    :'<div class="tip">词都对上了，没有明显问题——继续跟读下一句吧。</div>';
+  $('recArea').style.display='';
+}
+
+/* ---- 按住录音（Pointer Events，触屏+鼠标统一） ---- */
+let mediaRecorder=null,recChunks=[],holding=false,recog=null,recogHyp='';
+const btnRec=$('btnRec');
+async function startRec(){
+  const s=sents[i]; if(!s){alert('先选中一句再跟读');return;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder=new MediaRecorder(stream); recChunks=[];
+    mediaRecorder.ondataavailable=e=>recChunks.push(e.data);
+    mediaRecorder.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      const blob=new Blob(recChunks,{type:mediaRecorder.mimeType||'audio/webm'});
+      $('rAudio').src=URL.createObjectURL(blob);
+      // 网页内置识别在按住期间实时进行，松开后取结果
+      setTimeout(()=>{
+        if(recogHyp){ $('asrStatus').textContent='网页识别完成 ✓'; renderCompare(recogHyp); }
+        else{
+          $('asrStatus').textContent='未拿到识别文本。请在 WorkBuddy 技能中心搜索并安装 ASR 技能（如 whisper 本地转写）并完成配置，用它转写这段录音；或直接在下方手动输入你读的内容再对比。';
+        }
+      },600);
+    };
+    mediaRecorder.start(); holding=true;
+    btnRec.classList.add('holding');
+    recogHyp='';
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(SR){
+      recog=new SR(); recog.lang='en-US'; recog.interimResults=false; recog.maxAlternatives=1;
+      recog.onresult=e=>{recogHyp=e.results[0][0].transcript;};
+      recog.onerror=()=>{};
+      try{recog.start();$('asrStatus').textContent='正在录音+识别…松开结束';}
+      catch(e){recog=null;$('asrStatus').textContent='识别启动失败，录音仍会保存。';}
+    }else{
+      recog=null;
+      $('asrStatus').textContent='当前浏览器不支持网页语音识别。录音仍会保存；请到 WorkBuddy 技能中心安装并配置 ASR 技能来转写，或手动输入对比。';
+    }
+  }catch(e){alert('无法访问麦克风：'+e.message);}
+}
+function stopRec(){
+  if(!holding)return;
+  holding=false; btnRec.classList.remove('holding');
+  if(recog){try{recog.stop();}catch(e){} recog=null;}
+  if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
+}
+btnRec.addEventListener('pointerdown',e=>{e.preventDefault();startRec();});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>btnRec.addEventListener(ev,stopRec));
+btnRec.addEventListener('contextmenu',e=>e.preventDefault());
+function compareManual(){
+  const t=$('manualHyp').value.trim(); if(!t){alert('请先输入你读的内容');return;}
+  if(i<0||!sents.length){alert('先选中一句');return;}
+  $('asrStatus').textContent='手动输入对比 ✓';
+  renderCompare(t);
+}
+
+/* 文本模式：左右滑动切句 */
+let swipeX=null;
+$('textView').addEventListener('touchstart',e=>{swipeX=e.changedTouches[0].clientX;},{passive:true});
+$('textView').addEventListener('touchend',e=>{
+  if(swipeX==null)return;
+  const dx=e.changedTouches[0].clientX-swipeX; swipeX=null;
+  if(Math.abs(dx)>50) dx<0?go(1):go(-1);
+},{passive:true});
+
+/* PWA：仅在 http(s) 下注册 Service Worker；file:// 打开时静默跳过 */
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
+  navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW 注册失败：',e));
+}
+renderLib();
+</script>
+</body>
+</html>

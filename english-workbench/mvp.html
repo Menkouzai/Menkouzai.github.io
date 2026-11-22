@@ -134,7 +134,7 @@
         <button class="btn" onclick="pickVideo()">🎬 上传视频文件</button>
         <button class="btn" onclick="fS.click()">📄 给当前素材关联字幕/文本</button>
         <input type="file" id="fV" accept="video/*,audio/*">
-        <input type="file" id="fS" accept=".srt,.vtt,.txt">
+        <input type="file" id="fS" accept=".srt,.vtt,.txt,.json">
       </div>
       <div class="row" style="margin-top:8px">
         <input type="url" id="vUrl" placeholder="或粘贴视频直链（跨会话可用，手机也能访问）">
@@ -146,6 +146,12 @@
       <div class="row" style="margin-top:8px">
         <button class="btn small" onclick="usePaste()">关联这段文本</button>
       </div>
+      <div class="row" style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--line)">
+        <button class="btn small" onclick="exportBackup()">⬇ 导出素材库备份</button>
+        <button class="btn small" onclick="fBackup.click()">⬆ 导入备份到本机</button>
+        <input type="file" id="fBackup" accept=".json" style="display:none">
+      </div>
+      <p class="hint">备份 = 一个 JSON 文件，含所有素材记录和字幕/时间轴文本（不含视频文件本身）。把它传到另一台设备再点「导入备份」，素材库就一致了；视频文件因浏览器限制仍需各自选一次。</p>
       <p class="hint">说明：本地视频文件因浏览器安全限制不跨会话保存，重开页面后点开素材再补选一次文件即可；直链素材与字幕/文本会持久保存。删除素材只删除工作台里的记录，不动原始文件。</p>
     </section>
     <div id="libList"></div>
@@ -240,6 +246,37 @@ let pendingLocalId=null;      // 等待补选本地视频文件的素材 id
 const save=()=>localStorage.setItem('mvp_mats',JSON.stringify(mats));
 const curMat=()=>mats.find(m=>m.id===curMatId)||null;
 
+/* ---------- 素材库备份：导出 / 导入（跨设备搬运，视频文件不含） ---------- */
+function exportBackup(){
+  if(!mats.length){alert('素材库是空的，没有可导出的内容');return;}
+  const pkg={app:'english-workbench',version:1,exportedAt:new Date().toISOString(),materials:mats};
+  const blob=new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='英语工作台-素材库备份-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  alert('已导出 '+mats.length+' 个素材。把这个文件传到另一台设备，再点「导入备份到本机」。');
+}
+$('fBackup').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  try{
+    const pkg=JSON.parse(await f.text());
+    const incoming=Array.isArray(pkg)?pkg:(pkg.materials||[]);
+    if(!incoming.length){alert('备份文件里没有素材');return;}
+    if(!confirm('将导入 '+incoming.length+' 个素材。\n\n若本机已有同名素材，会保留两份（id 不同）。\n确定继续吗？'))return;
+    // 用 id 去重：同 id 覆盖，新 id 追加
+    let added=0,updated=0;
+    incoming.forEach(m=>{
+      const idx=mats.findIndex(x=>x.id===m.id);
+      if(idx>=0){mats[idx]=m;updated++;}else{mats.push(m);added++;}
+    });
+    save(); renderLib();
+    alert('导入完成：新增 '+added+' 个，更新 '+updated+' 个。');
+  }catch(err){alert('备份导入失败：'+err.message);}
+  e.target.value='';
+});
+
 /* ---------- 页面切换 ---------- */
 function showPage(p){
   $('pageLib').style.display=p==='lib'?'':'none';
@@ -298,7 +335,8 @@ function parseLines(raw){
 $('fS').onchange=async e=>{
   const f=e.target.files[0]; if(!f)return;
   const txt=await f.text();
-  attachSub(f.name, f.name.toLowerCase().match(/\.(srt|vtt)$/)?'srt':'text', txt);
+  const kind=f.name.toLowerCase().match(/\.json$/)?'json':(f.name.toLowerCase().match(/\.(srt|vtt)$/)?'srt':'text');
+  attachSub(f.name, kind, txt);
 };
 function usePaste(){
   const lines=$('paste').value.trim().split('\n').map(s=>s.trim()).filter(Boolean);
@@ -313,7 +351,7 @@ function attachSub(name,kind,txt){
       subName:null, subKind:null, subContent:null, hasTimeline:false};
     mats.unshift(m); curMatId=m.id;
   }
-  m.subName=name; m.subKind=kind; m.subContent=txt; m.hasTimeline=(kind==='srt');
+  m.subName=name; m.subKind=kind; m.subContent=txt; m.hasTimeline=(kind==='srt'||kind==='json');
   save(); openMaterial(m.id); renderLib();
 }
 
@@ -328,7 +366,7 @@ function renderLib(){
     if(!list.length){cards.innerHTML='<p class="hint">暂无素材</p>';}
     list.forEach(m=>{
       const dur=m.duration?fmt(m.duration):(m.kind==='url'?'时长未知（打开后读取）':'待补选视频后读取');
-      const subSt=m.subKind==='srt'?`<span class="st-ok">字幕 ${m.subName}（有时间轴）</span>`
+      const subSt=(m.subKind==='srt'||m.subKind==='json')?`<span class="st-ok">字幕 ${m.subName}（有时间轴）</span>`
         :m.subKind==='text'?`<span class="st-ok">纯文本（无时间轴）</span>`
         :'<span class="st-none">未关联字幕/文本</span>';
       const d=document.createElement('div');
@@ -363,6 +401,7 @@ function openMaterial(id){
   else{ pendingLocalId=id; $('rePick').style.display='flex'; $('rePickName').textContent='「'+m.name+'」是本地文件，重开页面后需补选一次'; }
   // 句子
   if(m.subKind==='srt'){ load(parseSRT(m.subContent)); }
+  else if(m.subKind==='json'){ load(parseTimelineJSON(m.subContent)); }
   else if(m.subKind==='text'){ load(parseLines(m.subContent)); }
   else{ sents=[]; i=-1; render(); $('cur').textContent='该素材还没有字幕/文本，到素材页关联一个'; $('pos').textContent='0 / 0'; }
   v.onloadedmetadata=()=>{ if(v.duration){m.duration=Math.round(v.duration);save();} };
@@ -370,6 +409,19 @@ function openMaterial(id){
 
 /* ---------- 播放逻辑（同前） ---------- */
 function load(arr){ sents=arr; i=0; render(); show(0); }
+/* 时间轴 JSON：兼容 {startMs,endMs,text}（毫秒）与 {start,end,text}（秒） */
+function parseTimelineJSON(txt){
+  try{
+    const data=JSON.parse(txt);
+    const arr=Array.isArray(data)?data:(data.sentences||data.segments||[]);
+    const out=arr.map(x=>{
+      const s=x.startMs!=null?x.startMs/1000:x.start;
+      const e=x.endMs!=null?x.endMs/1000:x.end;
+      return {start:(s!=null?Number(s):null), end:(e!=null?Number(e):null), text:x.text||''};
+    }).filter(x=>x.text);
+    return out;
+  }catch(err){ alert('时间轴 JSON 解析失败：'+err.message); return []; }
+}
 function parseSRT(txt){
   const out=[], re=/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/;
   for(const b of txt.replace(/\r/g,'').split(/\n\n+/)){
